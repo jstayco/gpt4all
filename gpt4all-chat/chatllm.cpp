@@ -115,7 +115,7 @@ ChatLLM::~ChatLLM()
 
 bool ChatLLM::loadDefaultModel()
 {
-    const QList<QVariantMap> models = m_chat->modelList();
+    const QList<QVariantMap> models = m_chat->getModelList();
     if (models.isEmpty()) {
         // try again when we get a list of models
         connect(Download::globalInstance(), &Download::modelListChanged, this,

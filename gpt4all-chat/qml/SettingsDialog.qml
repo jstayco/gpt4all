@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Controls.Basic
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import aiModels
 import download
 import network
 import llm
@@ -614,7 +615,7 @@ Dialog {
                         Layout.row: 1
                         Layout.column: 1
                         Layout.minimumWidth: 350
-                        model: modelList
+                        model: AIModels.modelList()
                         Accessible.role: Accessible.ComboBox
                         Accessible.name: qsTr("ComboBox for displaying/picking the default model")
                         Accessible.description: qsTr("Use this for picking the default model to use; the first item is the current default model")
@@ -626,9 +627,9 @@ Dialog {
                             // Find the formatted name corresponding to the user's default model
                             var userDefaultModelOriginal = settingsDialog.userDefaultModel;
                             var userDefaultModelFormatted;
-                            for (var i = 0; i < currentChat.modelList.length; i++) {
-                                if (currentChat.modelList[i].original === userDefaultModelOriginal) {
-                                    userDefaultModelFormatted = currentChat.modelList[i].formatted;
+                            for (var i = 0; i < AIModels.modelList().length; i++) {
+                                if (AIModels.modelList()[i].original === userDefaultModelOriginal) {
+                                    userDefaultModelFormatted = AIModels.modelList()[i].formatted;
                                     break;
                                 }
                             }
@@ -638,23 +639,23 @@ Dialog {
                             }
                         }
                         Component.onCompleted: {
-                            comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
+                            comboBox.updateModel(AIModels.modelList().map(function(item) { return item.formatted }));
                         }
                         Connections {
                             target: settings
                             function onUserDefaultModelChanged() {
-                                comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
+                                comboBox.updateModel(AIModels.modelList().map(function(item) { return item.formatted }));
                             }
                         }
                         Connections {
                             target: currentChat
                             function onModelListChanged() {
-                                comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
+                                comboBox.updateModel(AIModels.modelList().map(function(item) { return item.formatted }));
                             }
                         }
                         onActivated: {
                             console.log(currentChat.modelList[comboBox.currentIndex - 1].original)
-                            settingsDialog.userDefaultModel = currentChat.modelList[comboBox.currentIndex - 1].original
+                            settingsDialog.userDefaultModel = AIModels.modelList()[comboBox.currentIndex - 1].original
                             settings.sync()
                         }
                     }

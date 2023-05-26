@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import aiModels
 import llm
 import download
 import network
@@ -20,7 +21,7 @@ Window {
 
     property var currentChat: LLM.chatListModel.currentChat
     property var chatModel: currentChat.chatModel
-    property var modelListArray: currentChat.modelList.map(function(item) {
+    property var modelListArray: AIModels.modelList().map(function(item) {
         return {formatted: item.formatted, original: item.original};
     })
 
@@ -73,7 +74,7 @@ Window {
         }
 
         // check for any current models and if not, open download dialog
-        if (currentChat.modelList.length === 0 && !firstStartDialog.opened) {
+        if (AIModels.modelList().length === 0 && !firstStartDialog.opened) {
             downloadNewModels.open();
             return;
         }
@@ -147,7 +148,7 @@ Window {
                 anchors.bottom: modelLabel.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 enabled: !currentChat.isServer
-                model: modelList
+                model: AIModels.modelList()
                 Accessible.role: Accessible.ComboBox
                 Accessible.name: qsTr("ComboBox for displaying/picking the current model")
                 Accessible.description: qsTr("Use this for picking the current model to use; the first item is the current model")
@@ -161,9 +162,9 @@ Window {
                     // Find the formatted name corresponding to the user's default model
                     var userDefaultModelOriginal = settingsDialog.userDefaultModel;
                     var userDefaultModelFormatted;
-                    for (var i = 0; i < currentChat.modelList.length; i++) {
-                        if (currentChat.modelList[i].original === userDefaultModelOriginal) {
-                            userDefaultModelFormatted = currentChat.modelList[i].formatted;
+                    for (var i = 0; i < AIModels.modelList().length; i++) {
+                        if (AIModels.modelList()[i].original === userDefaultModelOriginal) {
+                            userDefaultModelFormatted = AIModels.modelList()[i].formatted;
                             break;
                         }
                     }
@@ -173,19 +174,30 @@ Window {
                     }
                 }
                 Component.onCompleted: {
-                    comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
+                    comboBox.updateModel(AIModels.modelList().map(function(item) { return item.formatted }));
                 }
                 Connections {
-                    target: currentChat
-                    function onModelListChanged() {
-                        comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
+                    target: LLM.chatListModel
+                    onCurrentChatChanged: {
+                        var currentChatModelOriginal = LLM.chatListModel.currentChat.modelName;
+                        var currentChatModelFormatted;
+                        for (var i = 0; i < AIModels.modelList().length; i++) {
+                            if (AIModels.modelList()[i].original === currentChatModelOriginal) {
+                                currentChatModelFormatted = AIModels.modelList()[i].formatted;
+                                break;
+                            }
+                        }
+                        // If the current chat's model was found, set it as the current index
+                        if (currentChatModelFormatted) {
+                            comboBox.currentIndex = comboBox.model.indexOf(currentChatModelFormatted);
+                        }
                     }
                 }
                 onActivated: {
-                    console.log(currentChat.modelList[comboBox.currentIndex - 1].original)
+                    console.log(AIModels.modelList()[comboBox.currentIndex - 1].original)
                     currentChat.stopGenerating()
                     currentChat.reset();
-                    currentChat.modelName = currentChat.modelList[comboBox.currentIndex - 1].original
+                    currentChat.modelName = AIModels.modelList()[comboBox.currentIndex - 1].original
                 }
             }
         }

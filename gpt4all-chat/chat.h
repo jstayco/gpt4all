@@ -5,6 +5,7 @@
 #include <QtQml>
 #include <QDataStream>
 
+#include "aimodels.h"
 #include "chatllm.h"
 #include "chatmodel.h"
 #include "database.h"
@@ -21,12 +22,16 @@ class Chat : public QObject
     Q_PROPERTY(QString modelName READ modelName WRITE setModelName NOTIFY modelNameChanged)
     Q_PROPERTY(bool responseInProgress READ responseInProgress NOTIFY responseInProgressChanged)
     Q_PROPERTY(bool isRecalc READ isRecalc NOTIFY recalcChanged)
-    Q_PROPERTY(QList<QVariantMap> modelList READ modelList NOTIFY modelListChanged)
     Q_PROPERTY(bool isServer READ isServer NOTIFY isServerChanged)
     Q_PROPERTY(QString responseState READ responseState NOTIFY responseStateChanged)
     Q_PROPERTY(QList<QString> collectionList READ collectionList NOTIFY collectionListChanged)
     QML_ELEMENT
     QML_UNCREATABLE("Only creatable from c++!")
+
+    QList<QVariantMap> modelList() const {
+        return AIModels::globalInstance()->modelList();
+    }
+
 
 public:
     enum ResponseState {
@@ -79,7 +84,6 @@ public:
 
     void extracted(QList<QVariantMap> &list, QString &localPath,
                    QString &currentModelName, QStringList &fileNames) const;
-    QList<QVariantMap> modelList() const;
     bool isServer() const { return m_isServer; }
 
     QList<QString> collectionList() const;
@@ -87,6 +91,10 @@ public:
     Q_INVOKABLE bool hasCollection(const QString &collection) const;
     Q_INVOKABLE void addCollection(const QString &collection);
     Q_INVOKABLE void removeCollection(const QString &collection);
+
+    QList<QVariantMap> getModelList() const {
+        return modelList();
+    }
 
 public Q_SLOTS:
     void serverNewPromptResponsePair(const QString &prompt);
@@ -106,7 +114,6 @@ Q_SIGNALS:
     void resetResponseRequested();
     void resetContextRequested();
     void modelNameChangeRequested(const QString &modelName);
-    void modelNameChanged();
     void recalcChanged();
     void loadDefaultModelRequested();
     void loadModelRequested(const QString &modelName);
@@ -115,6 +122,7 @@ Q_SIGNALS:
     void modelLoadingError(const QString &error);
     void isServerChanged();
     void collectionListChanged();
+    void modelNameChanged(const QString& newModelName);
 
 private Q_SLOTS:
     void handleLocalDocsRetrieved(const QString &uid, const QList<ResultInfo> &results);
@@ -152,16 +160,6 @@ private:
     ChatLLM *m_llmodel;
     bool m_isServer;
     bool m_shouldDeleteLater;
-    bool listContainsOriginalName(QList<QVariantMap> list, QString name) const;
-    QString formatModelName(QString filename, bool isChatGPT) const;
-    static const QRegularExpression m_regexGGML;
-    static const QRegularExpression m_regexBinSuffix;
-    static const QRegularExpression m_regexWordStart;
-    static const QRegularExpression m_regexDigitB;
-    static const QRegularExpression m_regexGPT4All;
-    static const QRegularExpression m_regexGPT;
-    static const QRegularExpression m_regexDoubleGPT;
-    static const QRegularExpression m_regexQuantization;
     Prompt m_queuedPrompt;
 };
 

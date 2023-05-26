@@ -1,3 +1,4 @@
+#include "aimodels.h"
 #include "chat.h"
 #include "llm.h"
 #include "localdocs.h"
@@ -18,16 +19,6 @@ Chat::Chat(QObject *parent)
 {
     connectLLM();
 }
-
-// Initialize our static properties
-const QRegularExpression Chat::m_regexGGML("ggml-");
-const QRegularExpression Chat::m_regexBinSuffix("(\\.q\\d+(_\\d+)?\\.bin|\\.bin)$");
-const QRegularExpression Chat::m_regexWordStart("\\b\\w");
-const QRegularExpression Chat::m_regexDigitB("(\\d{1,2})b");
-const QRegularExpression Chat::m_regexGPT4All("gpt4all", QRegularExpression::CaseInsensitiveOption);
-const QRegularExpression Chat::m_regexGPT("gpt(?!4all)", QRegularExpression::CaseInsensitiveOption);
-const QRegularExpression Chat::m_regexDoubleGPT("(GPT)\\s\\1", QRegularExpression::CaseInsensitiveOption);
-const QRegularExpression Chat::m_regexQuantization("(\\.?)q(\\d+)(_\\d+)?", QRegularExpression::CaseInsensitiveOption);
 
 Chat::Chat(bool isServer, QObject *parent)
     : QObject(parent)
@@ -54,7 +45,7 @@ void Chat::connectLLM()
 {
     // Should be in same thread
     connect(Download::globalInstance(), &Download::modelListChanged, this, &Chat::modelListChanged, Qt::DirectConnection);
-    connect(this, &Chat::modelNameChanged, this, &Chat::modelListChanged, Qt::DirectConnection);
+    connect(AIModels::globalInstance(), &AIModels::modelListChanged, this, &Chat::modelListChanged, Qt::DirectConnection);
     connect(LocalDocs::globalInstance(), &LocalDocs::receivedResult, this, &Chat::handleLocalDocsRetrieved, Qt::DirectConnection);
 
     // Should be in different threads
@@ -345,7 +336,7 @@ void Chat::handleRecalculating()
 void Chat::handleModelNameChanged()
 {
     m_savedModelName = modelName();
-    emit modelNameChanged();
+    emit modelNameChanged(m_savedModelName);
 }
 
 bool Chat::serialize(QDataStream &stream, int version) const
@@ -388,134 +379,6 @@ bool Chat::deserialize(QDataStream &stream, int version)
         return false;
     emit chatModelChanged();
     return stream.status() == QDataStream::Ok;
-}
-
-QList<QVariantMap> Chat::modelList() const
-{
-    // Build a model list from exepath and from the localpath
-    QList<QVariantMap> list;
-
-    QString exePath = QCoreApplication::applicationDirPath() + QDir::separator();
-    QString localPath = Download::globalInstance()->downloadLocalModelsPath();
-
-    QSettings settings;
-    settings.sync();
-    // The user default model can be set by the user in the settings dialog. The "default" user
-    // default model is "Application default" which signals we should use the default model that was
-    // specified by the models.json file.
-    QString defaultModel = settings.value("userDefaultModel").toString();
-    if (defaultModel.isEmpty() || defaultModel == "Application default")
-        defaultModel = settings.value("defaultModel").toString();
-
-    QString currentModelName = modelName().isEmpty() ? defaultModel : modelName();
-
-    {
-        QDir dir(exePath);
-        dir.setNameFilters(QStringList() << "ggml-*.bin");
-        QStringList fileNames = dir.entryList();
-        for (QString f : fileNames) {
-            QString filePath = exePath + f;
-            QFileInfo info(filePath);
-            QString name = info.completeBaseName().remove(0, 5);
-            if (info.exists()) {
-                QVariantMap model;
-                model["original"] = name;
-                model["formatted"] = formatModelName(name, false);
-                if (name == currentModelName)
-                    list.prepend(model);
-                else
-                    list.append(model);
-            }
-        }
-    }
-
-    if (localPath != exePath) {
-        QDir dir(localPath);
-        dir.setNameFilters(QStringList() << "ggml-*.bin" << "chatgpt-*.txt");
-        QStringList fileNames = dir.entryList();
-        for (QString f : fileNames) {
-            QString filePath = localPath + f;
-            QFileInfo info(filePath);
-            QString basename = info.completeBaseName();
-            QString name = basename.startsWith("ggml-") ? basename.remove(0, 5) : basename;
-            if (info.exists() && !listContainsOriginalName(list, name)) { // don't allow duplicates
-                QVariantMap model;
-                model["original"] = name;
-                model["formatted"] = formatModelName(name, basename.startsWith("chatgpt-"));
-                if (name == currentModelName)
-                    list.prepend(model);
-                else
-                    list.append(model);
-            }
-        }
-    }
-
-
-    if (list.isEmpty()) {
-        if (exePath != localPath) {
-            qWarning() << "ERROR: Could not find any applicable models in"
-                       << exePath << "nor" << localPath;
-        } else {
-            qWarning() << "ERROR: Could not find any applicable models in"
-                       << exePath;
-        }
-        return QList<QVariantMap>();
-    }
-
-    return list;
-}
-
-// Helper function to check if a list contains a map with a specific original name
-bool Chat::listContainsOriginalName(QList<QVariantMap> list, QString name) const
-{
-    for (QVariantMap model : list) {
-        if (model["original"].toString() == name) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Helper function to format model names
-QString Chat::formatModelName(QString filename, bool isChatGPT) const
-{
-    QString name = filename;
-    if (!isChatGPT) {
-        name.remove(m_regexGGML);
-        name.remove(m_regexBinSuffix);
-        name.replace('-', ' ');
-        name = name.toLower();
-        QRegularExpressionMatch match = m_regexWordStart.match(name);
-        while (match.hasMatch()) {
-            name.replace(match.capturedStart(), 1, match.captured().toUpper());
-            match = m_regexWordStart.match(name, match.capturedEnd());
-        }
-        match = m_regexDigitB.match(name);
-        while (match.hasMatch()) {
-            name.replace(match.capturedStart(), match.capturedLength(), match.captured(1) + 'B');
-            match = m_regexDigitB.match(name, match.capturedEnd());
-        }
-    }
-
-    name.replace(m_regexGPT4All, "GPT4All");
-    name.replace(m_regexGPT, "GPT");
-    name.replace(m_regexDoubleGPT, "GPT");
-
-    QRegularExpressionMatch matchQuantization = m_regexQuantization.match(name);
-    while (matchQuantization.hasMatch()) {
-        QString replacement;
-        // If the third captured group (the second digit part after underscore) exists and is not "_0", then keep it in the replacement
-        if (!matchQuantization.captured(3).isEmpty() && matchQuantization.captured(3) != "_0") {
-            replacement = " " + matchQuantization.captured(2) + "." + matchQuantization.captured(3).mid(1) + "q";
-        }
-        else {
-            replacement = " " + matchQuantization.captured(2) + "q";
-        }
-        name.replace(matchQuantization.capturedStart(), matchQuantization.capturedLength(), replacement);
-        matchQuantization = m_regexQuantization.match(name, matchQuantization.capturedEnd());
-    }
-
-    return name;
 }
 
 QList<QString> Chat::collectionList() const

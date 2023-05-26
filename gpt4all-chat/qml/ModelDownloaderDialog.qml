@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Controls.Basic
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import aiModels
 import download
 import llm
 import network
@@ -12,7 +13,7 @@ Dialog {
     id: modelDownloaderDialog
     modal: true
     opacity: 0.9
-    closePolicy: LLM.chatListModel.currentChat.modelList.length === 0 ? Popup.NoAutoClose : (Popup.CloseOnEscape | Popup.CloseOnPressOutside)
+    closePolicy: AIModels.modelList().length === 0 ? Popup.NoAutoClose : (Popup.CloseOnEscape | Popup.CloseOnPressOutside)
     padding: 20
     bottomPadding: 30
     background: Rectangle {

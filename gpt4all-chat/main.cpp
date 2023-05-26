@@ -5,6 +5,7 @@
 #include <QDirIterator>
 #include <QSettings>
 
+#include "aimodels.h"
 #include "llm.h"
 #include "localdocs.h"
 #include "download.h"
@@ -21,6 +22,7 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
     QQmlApplicationEngine engine;
+    qmlRegisterSingletonInstance("aiModels", 1, 0, "AIModels", AIModels::globalInstance());
     qmlRegisterSingletonInstance("llm", 1, 0, "LLM", LLM::globalInstance());
     qmlRegisterSingletonInstance("download", 1, 0, "Download", Download::globalInstance());
     qmlRegisterSingletonInstance("network", 1, 0, "Network", Network::globalInstance());
