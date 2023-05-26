@@ -20,7 +20,7 @@ class Chat : public QObject
     Q_PROPERTY(QString modelName READ modelName WRITE setModelName NOTIFY modelNameChanged)
     Q_PROPERTY(bool responseInProgress READ responseInProgress NOTIFY responseInProgressChanged)
     Q_PROPERTY(bool isRecalc READ isRecalc NOTIFY recalcChanged)
-    Q_PROPERTY(QList<QString> modelList READ modelList NOTIFY modelListChanged)
+    Q_PROPERTY(QList<QVariantMap> modelList READ modelList NOTIFY modelListChanged)
     Q_PROPERTY(bool isServer READ isServer NOTIFY isServerChanged)
     QML_ELEMENT
     QML_UNCREATABLE("Only creatable from c++!")
@@ -64,7 +64,9 @@ public:
     bool serialize(QDataStream &stream, int version) const;
     bool deserialize(QDataStream &stream, int version);
 
-    QList<QString> modelList() const;
+    void extracted(QList<QVariantMap> &list, QString &localPath,
+                   QString &currentModelName, QStringList &fileNames) const;
+    QList<QVariantMap> modelList() const;
     bool isServer() const { return m_isServer; }
 
 public Q_SLOTS:
@@ -113,6 +115,16 @@ private:
     ChatLLM *m_llmodel;
     bool m_isServer;
     bool m_shouldDeleteLater;
+    bool listContainsOriginalName(QList<QVariantMap> list, QString name) const;
+    QString formatModelName(QString filename, bool isChatGPT) const;
+    static const QRegularExpression m_regexGGML;
+    static const QRegularExpression m_regexBinSuffix;
+    static const QRegularExpression m_regexWordStart;
+    static const QRegularExpression m_regexDigitB;
+    static const QRegularExpression m_regexGPT4All;
+    static const QRegularExpression m_regexGPT;
+    static const QRegularExpression m_regexDoubleGPT;
+    static const QRegularExpression m_regexQuantization;
 };
 
 #endif // CHAT_H

@@ -20,11 +20,15 @@ Window {
 
     property var currentChat: LLM.chatListModel.currentChat
     property var chatModel: currentChat.chatModel
+    property var modelListArray: currentChat.modelList.map(function(item) {
+        return {formatted: item.formatted, original: item.original};
+    })
 
     color: theme.textColor
 
     // Startup code
     Component.onCompleted: {
+        console.log("modelListArray:", modelListArray);
         if (!LLM.compatHardware) {
             Network.sendNonCompatHardware();
             errorCompatHardware.open();
@@ -143,17 +147,45 @@ Window {
                 anchors.bottom: modelLabel.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 enabled: !currentChat.isServer
-                model: currentChat.modelList
+                model: modelList
                 Accessible.role: Accessible.ComboBox
                 Accessible.name: qsTr("ComboBox for displaying/picking the current model")
                 Accessible.description: qsTr("Use this for picking the current model to use; the first item is the current model")
                 background: Rectangle {
                     color: theme.backgroundDark
                 }
+                function updateModel(newModelList) {
+                    var newArray = Array.from(newModelList);
+                    newArray.unshift('Application default');
+                    comboBox.model = newArray;
+                    // Find the formatted name corresponding to the user's default model
+                    var userDefaultModelOriginal = settingsDialog.userDefaultModel;
+                    var userDefaultModelFormatted;
+                    for (var i = 0; i < currentChat.modelList.length; i++) {
+                        if (currentChat.modelList[i].original === userDefaultModelOriginal) {
+                            userDefaultModelFormatted = currentChat.modelList[i].formatted;
+                            break;
+                        }
+                    }
+                    // If the user's default model was found, set it as the current index
+                    if (userDefaultModelFormatted) {
+                        comboBox.currentIndex = comboBox.model.indexOf(userDefaultModelFormatted);
+                    }
+                }
+                Component.onCompleted: {
+                    comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
+                }
+                Connections {
+                    target: currentChat
+                    function onModelListChanged() {
+                        comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
+                    }
+                }
                 onActivated: {
+                    console.log(currentChat.modelList[comboBox.currentIndex - 1].original)
                     currentChat.stopGenerating()
                     currentChat.reset();
-                    currentChat.modelName = comboBox.currentText
+                    currentChat.modelName = currentChat.modelList[comboBox.currentIndex - 1].original
                 }
             }
         }

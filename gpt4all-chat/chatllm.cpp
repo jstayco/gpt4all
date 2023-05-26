@@ -115,14 +115,14 @@ ChatLLM::~ChatLLM()
 
 bool ChatLLM::loadDefaultModel()
 {
-    const QList<QString> models = m_chat->modelList();
+    const QList<QVariantMap> models = m_chat->modelList();
     if (models.isEmpty()) {
         // try again when we get a list of models
         connect(Download::globalInstance(), &Download::modelListChanged, this,
-            &ChatLLM::loadDefaultModel, Qt::SingleShotConnection);
+                &ChatLLM::loadDefaultModel, Qt::SingleShotConnection);
         return false;
     }
-    return loadModel(models.first());
+    return loadModel(models.first().value("original").toString());
 }
 
 bool ChatLLM::loadModel(const QString &modelName)

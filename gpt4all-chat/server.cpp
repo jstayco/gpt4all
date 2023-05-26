@@ -72,52 +72,52 @@ void Server::start()
     }
 
     m_server->route("/v1/models", QHttpServerRequest::Method::Get,
-        [](const QHttpServerRequest &request) {
-            if (!LLM::globalInstance()->serverEnabled())
-                return QHttpServerResponse(QHttpServerResponder::StatusCode::Unauthorized);
+                    [](const QHttpServerRequest &request) {
+                        if (!LLM::globalInstance()->serverEnabled())
+                            return QHttpServerResponse(QHttpServerResponder::StatusCode::Unauthorized);
 
-            const QList<ModelInfo> modelList = Download::globalInstance()->modelList();
-            QJsonObject root;
-            root.insert("object", "list");
-            QJsonArray data;
-            for (const ModelInfo &info : modelList) {
-                if (!info.installed)
-                    continue;
-                data.append(modelToJson(info));
-            }
-            root.insert("data", data);
-            return QHttpServerResponse(root);
-        }
-    );
+                        const QList<ModelInfo> modelList = Download::globalInstance()->modelList();
+                        QJsonObject root;
+                        root.insert("object", "list");
+                        QJsonArray data;
+                        for (const ModelInfo &info : modelList) {
+                            if (!info.installed)
+                                continue;
+                            data.append(modelToJson(info));
+                        }
+                        root.insert("data", data);
+                        return QHttpServerResponse(root);
+                    }
+                    );
 
     m_server->route("/v1/models/<arg>", QHttpServerRequest::Method::Get,
-        [](const QString &model, const QHttpServerRequest &request) {
-            if (!LLM::globalInstance()->serverEnabled())
-                return QHttpServerResponse(QHttpServerResponder::StatusCode::Unauthorized);
+                    [](const QString &model, const QHttpServerRequest &request) {
+                        if (!LLM::globalInstance()->serverEnabled())
+                            return QHttpServerResponse(QHttpServerResponder::StatusCode::Unauthorized);
 
-            const QList<ModelInfo> modelList = Download::globalInstance()->modelList();
-            QJsonObject object;
-            for (const ModelInfo &info : modelList) {
-                if (!info.installed)
-                    continue;
+                        const QList<ModelInfo> modelList = Download::globalInstance()->modelList();
+                        QJsonObject object;
+                        for (const ModelInfo &info : modelList) {
+                            if (!info.installed)
+                                continue;
 
-                QString modelName = modelToName(info);
-                if (model == modelName) {
-                    object = modelToJson(info);
-                    break;
-                }
-            }
-            return QHttpServerResponse(object);
-        }
-    );
+                            QString modelName = modelToName(info);
+                            if (model == modelName) {
+                                object = modelToJson(info);
+                                break;
+                            }
+                        }
+                        return QHttpServerResponse(object);
+                    }
+                    );
 
     m_server->route("/v1/completions", QHttpServerRequest::Method::Post,
-        [=](const QHttpServerRequest &request) {
-            if (!LLM::globalInstance()->serverEnabled())
-                return QHttpServerResponse(QHttpServerResponder::StatusCode::Unauthorized);
-            return handleCompletionRequest(request, false);
-        }
-    );
+                    [=](const QHttpServerRequest &request) {
+                        if (!LLM::globalInstance()->serverEnabled())
+                            return QHttpServerResponse(QHttpServerResponder::StatusCode::Unauthorized);
+                        return handleCompletionRequest(request, false);
+                    }
+                    );
 
     m_server->route("/v1/chat/completions", QHttpServerRequest::Method::Post,
         [=](const QHttpServerRequest &request) {

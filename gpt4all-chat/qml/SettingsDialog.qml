@@ -580,26 +580,38 @@ Dialog {
                             newArray.unshift('Application default');
                             comboBox.model = newArray;
                             settings.sync();
-                            comboBox.currentIndex = comboBox.indexOfValue(settingsDialog.userDefaultModel);
-
+                            // Find the formatted name corresponding to the user's default model
+                            var userDefaultModelOriginal = settingsDialog.userDefaultModel;
+                            var userDefaultModelFormatted;
+                            for (var i = 0; i < currentChat.modelList.length; i++) {
+                                if (currentChat.modelList[i].original === userDefaultModelOriginal) {
+                                    userDefaultModelFormatted = currentChat.modelList[i].formatted;
+                                    break;
+                                }
+                            }
+                            // If the user's default model was found, set it as the current index
+                            if (userDefaultModelFormatted) {
+                                comboBox.currentIndex = comboBox.model.indexOf(userDefaultModelFormatted);
+                            }
                         }
                         Component.onCompleted: {
-                            comboBox.updateModel(currentChat.modelList)
+                            comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
                         }
                         Connections {
                             target: settings
                             function onUserDefaultModelChanged() {
-                                comboBox.updateModel(currentChat.modelList)
+                                comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
                             }
                         }
                         Connections {
                             target: currentChat
                             function onModelListChanged() {
-                                comboBox.updateModel(currentChat.modelList)
+                                comboBox.updateModel(currentChat.modelList.map(function(item) { return item.formatted }));
                             }
                         }
                         onActivated: {
-                            settingsDialog.userDefaultModel = comboBox.currentText
+                            console.log(currentChat.modelList[comboBox.currentIndex - 1].original)
+                            settingsDialog.userDefaultModel = currentChat.modelList[comboBox.currentIndex - 1].original
                             settings.sync()
                         }
                     }
