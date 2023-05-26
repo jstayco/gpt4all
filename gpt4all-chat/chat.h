@@ -7,6 +7,7 @@
 
 #include "chatllm.h"
 #include "chatmodel.h"
+#include "database.h"
 #include "server.h"
 
 class Chat : public QObject
@@ -22,10 +23,21 @@ class Chat : public QObject
     Q_PROPERTY(bool isRecalc READ isRecalc NOTIFY recalcChanged)
     Q_PROPERTY(QList<QVariantMap> modelList READ modelList NOTIFY modelListChanged)
     Q_PROPERTY(bool isServer READ isServer NOTIFY isServerChanged)
+    Q_PROPERTY(QString responseState READ responseState NOTIFY responseStateChanged)
+    Q_PROPERTY(QList<QString> collectionList READ collectionList NOTIFY collectionListChanged)
     QML_ELEMENT
     QML_UNCREATABLE("Only creatable from c++!")
 
 public:
+    enum ResponseState {
+        ResponseStopped,
+        LocalDocsRetrieval,
+        LocalDocsProcessing,
+        PromptProcessing,
+        ResponseGeneration
+    };
+    Q_ENUM(ResponseState)
+
     explicit Chat(QObject *parent = nullptr);
     explicit Chat(bool isServer, QObject *parent = nullptr);
     virtual ~Chat();
@@ -50,6 +62,7 @@ public:
 
     QString response() const;
     bool responseInProgress() const { return m_responseInProgress; }
+    QString responseState() const;
     QString modelName() const;
     void setModelName(const QString &modelName);
     bool isRecalc() const;
@@ -69,6 +82,12 @@ public:
     QList<QVariantMap> modelList() const;
     bool isServer() const { return m_isServer; }
 
+    QList<QString> collectionList() const;
+
+    Q_INVOKABLE bool hasCollection(const QString &collection) const;
+    Q_INVOKABLE void addCollection(const QString &collection);
+    Q_INVOKABLE void removeCollection(const QString &collection);
+
 public Q_SLOTS:
     void serverNewPromptResponsePair(const QString &prompt);
 
@@ -79,6 +98,7 @@ Q_SIGNALS:
     void isModelLoadedChanged();
     void responseChanged();
     void responseInProgressChanged();
+    void responseStateChanged();
     void promptRequested(const QString &prompt, const QString &prompt_template, int32_t n_predict,
         int32_t top_k, float top_p, float temp, int32_t n_batch, float repeat_penalty, int32_t repeat_penalty_tokens,
         int32_t n_threads);
@@ -94,23 +114,40 @@ Q_SIGNALS:
     void modelListChanged();
     void modelLoadingError(const QString &error);
     void isServerChanged();
+    void collectionListChanged();
 
 private Q_SLOTS:
+    void handleLocalDocsRetrieved(const QString &uid, const QList<ResultInfo> &results);
     void handleResponseChanged();
     void handleModelLoadedChanged();
-    void responseStarted();
+    void promptProcessing();
     void responseStopped();
     void generatedNameChanged();
     void handleRecalculating();
     void handleModelNameChanged();
 
 private:
+    struct Prompt {
+        QString prompt;
+        QString prompt_template;
+        int32_t n_predict;
+        int32_t top_k;
+        float top_p;
+        float temp;
+        int32_t n_batch;
+        float repeat_penalty;
+        int32_t repeat_penalty_tokens;
+    };
+
     QString m_id;
     QString m_name;
     QString m_userName;
     QString m_savedModelName;
+    QList<QString> m_collections;
+    QList<ResultInfo> m_results;
     ChatModel *m_chatModel;
     bool m_responseInProgress;
+    ResponseState m_responseState;
     qint64 m_creationDate;
     ChatLLM *m_llmodel;
     bool m_isServer;
@@ -125,6 +162,7 @@ private:
     static const QRegularExpression m_regexGPT;
     static const QRegularExpression m_regexDoubleGPT;
     static const QRegularExpression m_regexQuantization;
+    Prompt m_queuedPrompt;
 };
 
 #endif // CHAT_H
