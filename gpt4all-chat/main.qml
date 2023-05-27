@@ -29,7 +29,6 @@ Window {
 
     // Startup code
     Component.onCompleted: {
-        console.log("modelListArray:", modelListArray);
         if (!LLM.compatHardware) {
             Network.sendNonCompatHardware();
             errorCompatHardware.open();
@@ -178,7 +177,8 @@ Window {
                 }
                 Connections {
                     target: LLM.chatListModel
-                    onCurrentChatChanged: {
+
+                    function onCurrentChatChanged() {
                         var currentChatModelOriginal = LLM.chatListModel.currentChat.modelName;
                         var currentChatModelFormatted;
                         for (var i = 0; i < AIModels.modelList().length; i++) {

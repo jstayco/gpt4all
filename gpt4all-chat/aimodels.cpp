@@ -47,8 +47,8 @@ QVariantMap AIModels::getModel(const QString& modelName) const {
         map["modelDisplayName"] = data.modelDisplayName;
         map["source"] = data.source;
         map["isInstalled"] = data.isInstalled;
-        for(auto key : data.optionalProperties.keys()){
-            map[key] = data.optionalProperties[key];
+        for(auto it = data.optionalProperties.cbegin(); it != data.optionalProperties.cend(); ++it) {
+            map[it.key()] = it.value();
         }
         return map;
     }
@@ -57,7 +57,9 @@ QVariantMap AIModels::getModel(const QString& modelName) const {
 
 QVariantMap AIModels::getModel(int index) const {
     if (index >= 0 && index < m_models.size()) {
-        QString key = m_models.keys().at(index);
+        auto it = m_models.cbegin();
+        std::advance(it, index);
+        QString key = it.key();
         return getModel(key);
     }
     return QVariantMap();
@@ -83,7 +85,7 @@ int AIModels::size() const {
     return m_models.size();
 }
 
-QList<QVariantMap> AIModels::modelList() const
+QList<QVariantMap> AIModels::modelList()
 {
     // Build a model list from exepath and from the localpath
     static QList<QVariantMap> list;
@@ -100,45 +102,29 @@ QList<QVariantMap> AIModels::modelList() const
 
     QSettings settings;
     settings.sync();
-    // The user default model can be set by the user in the settings dialog. The "default" user
-    // default model is "Application default" which signals we should use the default model that was
-    // specified by the models.json file.
     QString defaultModel = settings.value("userDefaultModel").toString();
     if (defaultModel.isEmpty() || defaultModel == "Application default")
         defaultModel = settings.value("defaultModel").toString();
 
     QString currentModelName = m_currentModelName.isEmpty() ? defaultModel : m_currentModelName;
 
-    {
-        QDir dir(exePath);
-        dir.setNameFilters(QStringList() << "ggml-*.bin");
-        QStringList fileNames = dir.entryList();
-        for (QString f : fileNames) {
-            QString filePath = exePath + f;
-            QFileInfo info(filePath);
-            QString name = info.completeBaseName().remove(0, 5);
-            if (info.exists()) {
-                QVariantMap model;
-                model["original"] = name;
-                model["formatted"] = formatModelName(name, false);
-                if (name == currentModelName)
-                    list.prepend(model);
-                else
-                    list.append(model);
-            }
-        }
-    }
-
-    if (localPath != exePath) {
-        QDir dir(localPath);
+    const auto checkDirAndAddModels = [&currentModelName, this](const QString &dirPath) {
+        QDir dir(dirPath);
         dir.setNameFilters(QStringList() << "ggml-*.bin" << "chatgpt-*.txt");
         QStringList fileNames = dir.entryList();
-        for (QString f : fileNames) {
-            QString filePath = localPath + f;
+        for (const QString& f : fileNames) {
+            QString filePath = dirPath + f;
+            QFile file(filePath);
+            if (!file.open(QIODevice::ReadOnly)) {
+                qDebug() << "Error opening file: " << filePath << " - " << file.errorString();
+                continue;
+            }
+            file.close();
+
             QFileInfo info(filePath);
             QString basename = info.completeBaseName();
             QString name = basename.startsWith("ggml-") ? basename.remove(0, 5) : basename;
-            if (info.exists() && !listContainsOriginalName(list, name)) { // don't allow duplicates
+            if (!listContainsOriginalName(list, name)) { // don't allow duplicates
                 QVariantMap model;
                 model["original"] = name;
                 model["formatted"] = formatModelName(name, basename.startsWith("chatgpt-"));
@@ -148,8 +134,12 @@ QList<QVariantMap> AIModels::modelList() const
                     list.append(model);
             }
         }
-    }
+    };
 
+    checkDirAndAddModels(exePath);
+    if (localPath != exePath) {
+        checkDirAndAddModels(localPath);
+    }
 
     if (list.isEmpty()) {
         if (exePath != localPath) {
@@ -174,9 +164,9 @@ void AIModels::invalidateModelListCache()
     m_isModelListInitialized = false;
 }
 
-bool AIModels::listContainsOriginalName(QList<QVariantMap> list, QString name) const
+bool AIModels::listContainsOriginalName(const QList<QVariantMap>& list, const QString& name) const
 {
-    for (QVariantMap model : list) {
+    for (const QVariantMap& model : list) {
         if (model["original"].toString() == name) {
             return true;
         }

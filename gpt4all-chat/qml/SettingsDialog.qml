@@ -654,7 +654,7 @@ Dialog {
                             }
                         }
                         onActivated: {
-                            console.log(currentChat.modelList[comboBox.currentIndex - 1].original)
+                            console.log(AIModels.modelList[comboBox.currentIndex - 1].original)
                             settingsDialog.userDefaultModel = AIModels.modelList()[comboBox.currentIndex - 1].original
                             settings.sync()
                         }

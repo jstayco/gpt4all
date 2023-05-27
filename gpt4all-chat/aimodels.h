@@ -36,8 +36,7 @@ public:
     Q_INVOKABLE QVariantMap getModel(const QString& modelName) const;
     Q_INVOKABLE QVariantMap getModel(int index) const;
     Q_INVOKABLE int size() const;
-    Q_INVOKABLE QList<QVariantMap> modelList() const;
-    bool listContainsOriginalName(QList<QVariantMap> list, QString name) const;
+    Q_INVOKABLE QList<QVariantMap> modelList();
     QString getModelName(const QString& modelName) const;
     void updateCurrentModelName(const QString& modelName);
 
@@ -48,6 +47,7 @@ public slots:
 private:
     AIModels(); // Private constructor
 
+    QList<QVariantMap> m_list;
     QMap<QString, ModelData> m_models;
     QRegularExpression m_regexGGML;
     QRegularExpression m_regexBinSuffix;
@@ -62,6 +62,7 @@ private:
     mutable bool m_isModelListInitialized = false;
 
     QString formatModelName(QString filename, bool isChatGPT) const;
+    bool listContainsOriginalName(const QList<QVariantMap>& list, const QString& name) const;
 
 signals:
     void modelListChanged();
